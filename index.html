@@ -570,9 +570,11 @@ function seedStore(){
   const audit=[{actor:null,action:"system.seed",object:"database",detail:"demonstration data loaded",at:isoAgo(24)}];
   return{users:[...staff,...customers],licences,instruments,reports,cases,audit,seq:CASE_SEQ};
 }
-function load(){try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s&&s.cases){CASE_SEQ=s.seq||300;return s}}catch(e){}const d=seedStore();try{localStorage.setItem(LS_KEY,JSON.stringify(d))}catch(e){}return d}
+// LIVE: the Google Sheet is the only record — nothing personal is kept in the visitor's browser.
+function purgeLocal(){for(const st of [window.localStorage,window.sessionStorage]){try{Object.keys(st).filter(k=>/^(pt|aps)\./.test(k)).forEach(k=>st.removeItem(k))}catch(e){}}}
+function load(){if(LIVE){purgeLocal();return seedStore()}try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s&&s.cases){CASE_SEQ=s.seq||300;return s}}catch(e){}const d=seedStore();try{localStorage.setItem(LS_KEY,JSON.stringify(d))}catch(e){}return d}
 let DB=load();
-function save(){DB.seq=CASE_SEQ;try{localStorage.setItem(LS_KEY,JSON.stringify(DB))}catch(e){}}
+function save(){if(LIVE)return;DB.seq=CASE_SEQ;try{localStorage.setItem(LS_KEY,JSON.stringify(DB))}catch(e){}}
 function resetDemo(){localStorage.removeItem(LS_KEY);localStorage.removeItem(LS_SESSION);localStorage.removeItem(LS_DRAFT);CASE_SEQ=300;DB=load();SESSION=null;toast("Demo data reset");go("#/")}
 function userName(id){const u=DB.users.find(u=>u.id===id);return u?u.name:"System"}
 function caseByRef(ref){return DB.cases.find(c=>c.ref===ref)}
@@ -588,7 +590,7 @@ function ruleInput(rep){const cse=caseByRef(rep.caseRef);const foreign=[];DB.rep
    SESSION / auth (client-side demo — no real security)
    ========================================================================= */
 let SESSION=(function(){try{return JSON.parse(localStorage.getItem(LS_SESSION))||null}catch(e){return null}})();
-function setSession(s){SESSION=s;try{s?localStorage.setItem(LS_SESSION,JSON.stringify(s)):localStorage.removeItem(LS_SESSION)}catch(e){}}
+function setSession(s){SESSION=s;if(LIVE)return;try{s?localStorage.setItem(LS_SESSION,JSON.stringify(s)):localStorage.removeItem(LS_SESSION)}catch(e){}}
 function signOut(){if(SESSION)logAudit("auth.sign_out","user:"+SESSION.id);setSession(null);go("#/")}
 const STAFF_ROLES=["executive","supervisor","wireman","admin"];
 function isStaff(){return SESSION&&STAFF_ROLES.includes(SESSION.role)}
@@ -676,8 +678,8 @@ function viewServices(){
 let WZ=null;
 function blankWZ(){return{svc:"new",use:"domestic",district:"Kamrup Metropolitan",own:"yes",ulb:"no",pole:"yes",dues:"no",consumerNo:"",meterRequest:"Faulty or burnt meter replacement",request:"",appliances:APPLIANCES.map(a=>a.qty),kwOverride:"",docsHave:{},name:"",mobile:"",pin:"",email:"",address:"",anchor:null,consents:CONSENT_PURPOSES.filter(c=>c.required).map(c=>c.key),step:"premises",ref:null}}
 const METER_REQUESTS=["Faulty or burnt meter replacement","Meter shifting","Billing correction","Tariff category change","Other consumer request"];
-function loadWZ(){try{const s=JSON.parse(localStorage.getItem(LS_DRAFT));if(s)return s}catch(e){}return blankWZ()}
-function saveWZ(){try{if(WZ&&WZ.step!=="done")localStorage.setItem(LS_DRAFT,JSON.stringify(WZ))}catch(e){}}
+function loadWZ(){if(LIVE)return blankWZ();try{const s=JSON.parse(localStorage.getItem(LS_DRAFT));if(s)return s}catch(e){}return blankWZ()}
+function saveWZ(){if(LIVE)return;try{if(WZ&&WZ.step!=="done")localStorage.setItem(LS_DRAFT,JSON.stringify(WZ))}catch(e){}}
 function viewApply(q){
   if(!WZ)WZ=loadWZ();
   if(!WIZARD_SERVICES.includes(WZ.svc)||WZ.step==="done")WZ=blankWZ();
@@ -720,7 +722,7 @@ function renderWizard(){
   const stepper='<ol style="display:flex;gap:8px;overflow-x:auto;padding:0;margin:0;list-style:none">'+steps.map((s,i)=>{const st=i<idx?"done":i===idx?"on":"todo";return '<li class="step '+st+'" style="flex:none"><span class="n">'+(st==="done"?"✓":i+1)+'</span><span class="small'+(st==="on"?"":" muted-3")+'" style="white-space:nowrap">'+s[1]+'</span></li>'}).join("")+'</ol>';
   const errBox=WZ._err?'<p style="display:flex;gap:8px;background:var(--red-soft);color:var(--red);padding:12px;border-radius:12px;margin-top:20px" class="small">⚠ '+esc(WZ._err)+'</p>':"";
   const actions=WZ.step!=="done"?'<div class="sticky-actions">'+(WZ.step!=="service"?'<button class="btn btn-ghost" data-w="back">Back</button>':"")+'<span style="margin-left:auto"></span>'+(WZ.step!=="service"?'<button class="btn btn-primary" data-w="next">'+(WZ.step==="review"?"Create my case":"Continue")+' →</button>':"")+'</div>':"";
-  root.innerHTML='<div style="border-bottom:1px solid var(--line-2);background:var(--paper)"><div class="wrap between" style="padding-top:12px;padding-bottom:12px"><span style="font-family:var(--font-display);font-weight:600">'+(svc?svc.label:"Start an application")+'</span><span class="chip chip-ok">'+(WZ.ref?"Case created":"Saved on this device")+'</span></div></div><div class="wrap" style="padding-top:16px;padding-bottom:8px">'+stepper+'</div><div class="wrap" style="padding-top:8px;padding-bottom:40px;max-width:900px">'+body+errBox+actions+'</div>';
+  root.innerHTML='<div style="border-bottom:1px solid var(--line-2);background:var(--paper)"><div class="wrap between" style="padding-top:12px;padding-bottom:12px"><span style="font-family:var(--font-display);font-weight:600">'+(svc?svc.label:"Start an application")+'</span>'+(LIVE&&!WZ.ref?'':'<span class="chip chip-ok">'+(WZ.ref?"Case created":"Saved on this device")+'</span>')+'</div></div><div class="wrap" style="padding-top:16px;padding-bottom:8px">'+stepper+'</div><div class="wrap" style="padding-top:8px;padding-bottom:40px;max-width:900px">'+body+errBox+actions+'</div>';
 }
 function fld(label,inner,cls,hint){return '<div class="'+(cls||"")+'"><span class="label">'+label+'</span>'+inner+(hint?'<span class="tiny muted-3" style="display:block;margin-top:4px">'+hint+'</span>':"")+'</div>'}
 function wzEligibility(){const e=[];if(WZ.dues==="yes")e.push(["stop","APDCL will not release a connection while dues are outstanding at the premises. We help you find out what is owed first."]);if(WZ.dues==="unknown")e.push(["info","We check for old dues before filing — the commonest cause of a stalled application."]);const assist=WZ.svc==="docs"||WZ.svc==="other",change=WZ.svc&&SERVICES[WZ.svc].existingConnection;if(!change&&!assist&&WZ.own==="no")e.push(["info","We will draft your landlord's NOC affidavit and indemnity bond and arrange the notary."]);if(WZ.svc==="new"&&WZ.district==="Kamrup Metropolitan"&&WZ.ulb==="yes")e.push(["info","In GMC areas APDCL validates the holding record. No assessment ID? We prepare a self-declaration."]);if(!e.length)return"";return '<div class="stack-sm mt-2">'+e.map(x=>'<p class="small" style="display:flex;gap:10px"><span class="chip chip-'+x[0]+'">'+(x[0]==="stop"?"Blocks":"Note")+'</span><span class="muted">'+x[1]+'</span></p>').join("")+'</div>'}
@@ -736,8 +738,8 @@ function wzSubmit(){const svc=SERVICES[WZ.svc];const calcKw=applianceTotal(WZ.ap
   let userId;const existing=DB.users.find(u=>u.role==="customer"&&normPhone(u.phone)===normPhone(WZ.mobile));if(existing)userId=existing.id;else{userId="c_"+uid();DB.users.push({id:userId,name:WZ.name.trim(),role:"customer",phone:normPhone(WZ.mobile)})}
   const ref=newRef();const now=new Date().toISOString();
   const cse={ref,userId,service:svc.key,family:svc.family,use:svc.existingConnection||WZ.svc==="docs"||WZ.svc==="other"?undefined:(WZ.svc==="temporary"?"temporary":WZ.use),applicantName:WZ.name.trim(),phone:normPhone(WZ.mobile),email:WZ.email||undefined,district:WZ.district,subDivision:WZ.subDivision||undefined,pin:WZ.pin||undefined,address:WZ.address||undefined,consumerNo:svc.existingConnection?WZ.consumerNo:undefined,appliedLoadKw,loadSource,own:WZ.own,ulb:WZ.ulb,pole:WZ.pole,dues:WZ.dues,anchor:WZ.anchor?{lat:WZ.anchor.lat,lng:WZ.anchor.lng,accuracy:WZ.anchor.accuracy,source:"customer_intake_pin",setAt:now}:null,stage:0,assignedTo:"u_exec",createdAt:now,onHold:false,meta:{calcKw,kwOverride:WZ.kwOverride||undefined,appliances:APPLIANCES.map((a,i)=>({name:a.name,qty:WZ.appliances[i]||0})).filter(a=>a.qty>0),docsHave:WZ.docsHave,meterRequest:WZ.svc==="meter"?WZ.meterRequest:undefined,request:["docs","other"].includes(WZ.svc)?WZ.request:undefined},rms:null,consents:WZ.consents.map(p=>({purpose:p,givenAt:now,withdrawnAt:null})),docs:[],invoices:[],quotes:[],filing:null,events:[{stage:0,note:"Case created online. Your executive will call within one working day.",at:now,actor:userId}]};
-  DB.cases.unshift(cse);logAudit("case.create","case:"+ref,svc.key);save();syncOut("case.created",cse);
-  WZ.ref=ref;WZ.step="done";try{localStorage.removeItem(LS_DRAFT)}catch(e){}window.scrollTo(0,0);renderWizard();
+  if(!LIVE)DB.cases.unshift(cse);logAudit("case.create","case:"+ref,svc.key);save();syncOut("case.created",cse);
+  if(LIVE)WZ=Object.assign(blankWZ(),{mobile:WZ.mobile});WZ.ref=ref;WZ.step="done";try{localStorage.removeItem(LS_DRAFT)}catch(e){}window.scrollTo(0,0);renderWizard();
 }
 
 /* ---------- SOLAR ---------- */
@@ -797,7 +799,7 @@ function createLeadCase(svcKey,d,meta,note){const phone=normPhone(d.mobile),name
   if(u){if(email&&!u.email)u.email=email}else{u={id:"c_"+uid(),name,role:"customer",phone,email};DB.users.push(u)}
   const s=SERVICES[svcKey],ref=newRef(),now=new Date().toISOString();
   const cse={ref,userId:u.id,service:svcKey,family:s.family,use:USE_FOR_PREMISES[d.premises]||"domestic",applicantName:name,phone,email,consumerNo,district:d.district||"Kamrup Metropolitan",subDivision:d.subDivision||undefined,stage:0,assignedTo:s.family==="works"?"u_supv":"u_exec",createdAt:now,onHold:false,meta,consents:CONSENT_PURPOSES.filter(c=>c.required).map(p=>({purpose:p.key,givenAt:now,withdrawnAt:null})),docs:[],invoices:[],quotes:[],filing:null,events:[{stage:0,note,at:now,actor:u.id}]};
-  DB.cases.unshift(cse);logAudit("case.create","case:"+ref,svcKey);save();syncOut("case.created",cse);return ref}
+  if(!LIVE)DB.cases.unshift(cse);logAudit("case.create","case:"+ref,svcKey);save();syncOut("case.created",cse);return ref}
 
 /* ---------- INTEGRATION HOOK: every new case is pushed to whatever is configured in INTEGRATIONS ---------- */
 function syncOut(event,payload){const body=JSON.stringify({event,at:new Date().toISOString(),source:BRAND.domain,token:INTEGRATIONS.leadToken,payload});
