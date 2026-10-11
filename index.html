@@ -259,6 +259,7 @@ footer.foot{padding-bottom:env(safe-area-inset-bottom)}
   .hero .cluster{justify-content:center}
 }
 .loadband{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:14px;background:var(--paper);padding:14px 16px;cursor:pointer}.loadband:hover{border-color:var(--navy)}.loadband.on{border-color:var(--navy);background:var(--navy-soft)}.loadband input{margin-top:4px;flex:none;accent-color:var(--btn-navy)}
+.staff-link{color:#8e91b8;text-decoration:none}.staff-link:hover{color:#55d4ff;text-decoration:underline}
 </style>
 </head>
 <body>
@@ -324,6 +325,7 @@ const INTEGRATIONS={
   backend:{mode:"local",apiBaseUrl:""}, // "local" = this browser only (demo); "api" = POST every case to apiBaseUrl + "/cases"
   leadWebhookUrl:"https://script.google.com/macros/s/AKfycbzzhJ52RomZfecr0tKZOKwFmdmKfSS7Vg_ITAN6l9qp3DxwrtUph-vI7nbSRMADaN0l/exec", leadToken:"2qAH6FQLWTIYTfiLR9gfrg3E",                    // e.g. Google Apps Script / Zapier / Make / CRM endpoint; receives each new request as JSON
   notifyEmail:"",                       // team inbox for new-request alerts (sent by the backend or webhook tool)
+  staffUrl:"https://script.google.com/a/macros/powerterminus.in/s/AKfycbyaJst9z_nK5M6aEgFRr1rhlA_9rYu6T03gm8ir6e5pRFx2edIjfH5o7pqf9IGs16fy/exec", // Ops dashboard (Google sign-in)
   smsProvider:"", whatsappBsp:"",       // configured server-side only; flags shown on the Integrations page
 };
 const PM_SURYA_GHAR_URL="https://pmsuryaghar.gov.in";
@@ -626,7 +628,7 @@ function footer(){const y=new Date().getFullYear();
   +footCol("Services",[["#/apply?s=new","New connection"],["#/solar","Rooftop solar"],["#/request?s=load","Load change"],["#/request?s=name","Name change"]])
   +footCol("More",[["#/request?s=works","Wiring works"],["#/request?s=repair","Maintenance & repair"]].concat(LIVE?[]:[["#/track","Track a case"],["#/verify","Verify a test report"]]))
   +footCol("Legal",[["#/privacy","Privacy policy"],["#/terms","Terms for consumers"]].concat(LIVE?[]:[["#/staff/login","Staff sign-in"],["#reset","Reset demo data"]]))
-  +'</div><div class="legalbar"><div class="wrap"><p class="disclaimer"><b>Disclaimer:</b> '+esc(BRAND.name)+' is an independent private service and is not APDCL, a government body, or affiliated with either.</p><span style="display:block;margin-top:6px">© '+y+' '+esc(BRAND.name)+'</span></div></div></footer>'}
+  +'</div><div class="legalbar"><div class="wrap"><p class="disclaimer"><b>Disclaimer:</b> '+esc(BRAND.name)+' is an independent private service and is not APDCL, a government body, or affiliated with either.</p><span style="display:block;margin-top:6px">© '+y+' '+esc(BRAND.name)+(LIVE&&INTEGRATIONS.staffUrl?' <span aria-hidden="true">·</span> <a href="'+INTEGRATIONS.staffUrl+'" target="_blank" rel="noopener" class="staff-link">Staff sign-in</a>':'')+'</span></div></div></footer>'}
 function footCol(title,links){return '<div class="footcol"><h5>'+title+'</h5>'+links.map(l=>'<a href="'+l[0]+'"'+(l[0]==="#reset"?' data-act="reset"':"")+'>'+l[1]+'</a>').join("")+'</div>'}
 
 /* shell wrappers */
